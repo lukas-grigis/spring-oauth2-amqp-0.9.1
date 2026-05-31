@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: dispatcher
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    virtual-host: /
+
+  security:
+    oauth2:
+      client:
+        registration:
+          rabbitmq-broker:
+            provider: keycloak
+            client-id: dispatcher
+            # demo default; override with DISPATCHER_CLIENT_SECRET (or a secrets manager) in production
+            client-secret: "${DISPATCHER_CLIENT_SECRET:dispatcher-secret}"
+            authorization-grant-type: client_credentials
+            # Keycloak alias scope; the broker's scope_aliases expand it to rabbitmq.write:*/jobs/job.*
+            scope:
+              - jobs_write
+        provider:
+          keycloak:
+            # Keycloak is HTTP behind Traefik at /auth; override via env in other environments.
+            token-uri: http://localhost/auth/realms/amqp-demo/protocol/openid-connect/token
+
+app:
+  amqp:
+    exchanges:
+      jobs: jobs
+    routing-keys:
+      job-submitted: "job.submitted"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    org.springframework.amqp: INFO
