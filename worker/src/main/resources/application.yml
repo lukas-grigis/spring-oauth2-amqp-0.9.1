@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: worker
+  main:
+    web-application-type: none
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    virtual-host: /
+
+  security:
+    oauth2:
+      client:
+        registration:
+          rabbitmq-broker:
+            provider: keycloak
+            client-id: worker
+            # demo default; override with WORKER_CLIENT_SECRET (or a secrets manager) in production
+            client-secret: "${WORKER_CLIENT_SECRET:worker-secret}"
+            authorization-grant-type: client_credentials
+            # Keycloak alias scopes; the broker expands them to read jobs.in + write result.* to results
+            scope:
+              - jobs_read
+              - results_write
+        provider:
+          keycloak:
+            # Keycloak is HTTP behind Traefik at /auth; override via env in other environments.
+            token-uri: http://localhost/auth/realms/amqp-demo/protocol/openid-connect/token
+
+app:
+  amqp:
+    exchanges:
+      results: results
+    queues:
+      jobs-in: "jobs.in"
+    routing-keys:
+      result-ready: "result.ready"
+
+logging:
+  level:
+    org.springframework.amqp: INFO
