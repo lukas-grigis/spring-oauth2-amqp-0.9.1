@@ -242,14 +242,13 @@ mise run infra:down        # tear everything down
 └── support/
     ├── .env                    # ports + image tags
     ├── docker-compose.yml
-    ├── traefik/.env
     ├── database/               # Postgres .env + init script (creates the keycloak DB)
     ├── keycloak/               # realm + client provisioning (TypeScript Admin API)
-    └── rabbitmq/               # .env, rabbitmq.conf, enabled_plugins, topology definitions
+    └── rabbitmq/               # rabbitmq.conf, enabled_plugins, topology definitions
 ```
 
-Each infrastructure component owns a small `.env` file that docker-compose loads via `env_file:`, so its configuration
-lives next to it.
+The `database` and `keycloak` services each own a small `.env` file that docker-compose loads via `env_file:`, so their
+configuration lives next to them. (`support/.env` holds the shared host ports and image tags.)
 
 ## Tech stack
 
