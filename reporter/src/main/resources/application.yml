@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: reporter
+  main:
+    web-application-type: none
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    virtual-host: /
+
+  security:
+    oauth2:
+      client:
+        registration:
+          rabbitmq-broker:
+            provider: keycloak
+            client-id: reporter
+            # demo default; override with REPORTER_CLIENT_SECRET (or a secrets manager) in production
+            client-secret: "${REPORTER_CLIENT_SECRET:reporter-secret}"
+            authorization-grant-type: client_credentials
+            # Keycloak alias scope; the broker expands it to read results.out only — no write anywhere
+            scope:
+              - results_read
+        provider:
+          keycloak:
+            # Keycloak is HTTP behind Traefik at /auth; override via env in other environments.
+            token-uri: http://localhost/auth/realms/amqp-demo/protocol/openid-connect/token
+
+app:
+  amqp:
+    queues:
+      results-out: "results.out"
+
+logging:
+  level:
+    org.springframework.amqp: INFO
