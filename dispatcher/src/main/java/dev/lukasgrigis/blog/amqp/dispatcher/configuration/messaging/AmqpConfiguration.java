@@ -1,5 +1,7 @@
 package dev.lukasgrigis.blog.amqp.dispatcher.configuration.messaging;
 
+import com.rabbitmq.client.impl.CredentialsRefreshService;
+import com.rabbitmq.client.impl.DefaultCredentialsRefreshService.DefaultCredentialsRefreshServiceBuilder;
 import dev.lukasgrigis.blog.amqp.dispatcher.messaging.JobPublisher;
 import dev.lukasgrigis.blog.amqp.dispatcher.security.OAuth2CredentialsProvider;
 import jakarta.validation.Valid;
@@ -14,6 +16,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -52,6 +55,11 @@ record AmqpProperties(
  * {@code CachingConnectionFactory}; we only swap in the {@link OAuth2CredentialsProvider} so the broker is
  * authenticated with the current token. The {@code RabbitTemplate} is auto-configured and automatically
  * picks up the {@link MessageConverter} bean below.
+ *
+ * <p>The customizer also installs a {@link CredentialsRefreshService}. Because {@link OAuth2CredentialsProvider}
+ * reports the token's remaining lifetime, the RabbitMQ client proactively renews the token on the live
+ * connection (via the AMQP {@code update-secret} method) before it expires — so the cached publishing
+ * connection never outlives its credential.
  */
 @Configuration
 @EnableConfigurationProperties(AmqpProperties.class)
@@ -63,15 +71,28 @@ class AmqpConfiguration {
     }
 
     @Bean
+    CredentialsRefreshService credentialsRefreshService() {
+        // Renews each token once 80% of its lifetime has elapsed (the builder default) and pushes the new
+        // token to the broker on the open connection, so a stable connection never outlives its credential.
+        return new DefaultCredentialsRefreshServiceBuilder().build();
+    }
+
+    @Bean
     ConnectionFactoryCustomizer oauth2CredentialsCustomizer(
         OAuth2AuthorizedClientManager authorizedClientManager,
+        OAuth2AuthorizedClientService authorizedClientService,
+        CredentialsRefreshService credentialsRefreshService,
         AmqpProperties properties
     ) {
-        return factory -> factory.setCredentialsProvider(
-            new OAuth2CredentialsProvider(
+        return factory -> {
+            final var provider = new OAuth2CredentialsProvider(
                 properties.brokerRegistrationId(),
-                authorizedClientManager
-            ));
+                authorizedClientManager,
+                authorizedClientService
+            );
+            factory.setCredentialsProvider(provider);
+            factory.setCredentialsRefreshService(credentialsRefreshService);
+        };
     }
 
     @Bean

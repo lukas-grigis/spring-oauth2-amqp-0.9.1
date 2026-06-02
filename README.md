@@ -66,9 +66,9 @@ Two details make the validation real:
 
 Each service wires the token in through a Spring Boot `ConnectionFactoryCustomizer`, so Boot still auto-configures the
 connection factory, `RabbitTemplate`, and listener containers from `spring.rabbitmq.*` — only the credentials are
-swapped. Spring Security's `OAuth2AuthorizedClientManager` caches and refreshes the token; long-lived consumers
-reconnect with a fresh token when one expires (wire RabbitMQ's `CredentialsRefreshService` for proactive refresh in
-production).
+swapped. Spring Security's `OAuth2AuthorizedClientManager` mints and caches the tokens, and a `CredentialsRefreshService`
+renews each one **on the live connection** (via the AMQP `update-secret` method) at 80% of its lifetime — so a long-lived
+connection never outlives its token.
 
 ## Quick start
 
@@ -186,10 +186,13 @@ public String getPassword() {
 *(Simplified for readability — the real `OAuth2CredentialsProvider` takes the registration id as a
 constructor argument and guards against a null token.)*
 
-Spring's `OAuth2AuthorizedClientManager` caches the token and refreshes it before expiry. The RabbitMQ Java client calls
-`getPassword()` each time it needs to (re)authenticate, so every (re)connect uses a fresh token. Note this is
-*connect-time*, not continuous: a long-lived connection keeps its original token until it drops and reconnects — wire
-RabbitMQ's `CredentialsRefreshService` for proactive, in-place refresh in production.
+Spring's `OAuth2AuthorizedClientManager` mints and caches the tokens, and `getPassword()` returns the current one. On its
+own that is *connect-time* only — over AMQP 0.9.1 a long-lived connection keeps the token it was born with, and once that
+token expires the broker refuses every operation with `ACCESS_REFUSED` (it does not drop the connection, so the client
+never re-authenticates). So the same customizer also installs a `CredentialsRefreshService`: because
+`OAuth2CredentialsProvider` reports `getTimeBeforeExpiration()`, the client renews the token **in place** on the open
+connection — via the AMQP `update-secret` method — at 80% of its lifetime. No reconnect, no dropped messages. The
+[integration tests](#tests) prove both halves.
 
 ## Keycloak runs over plain HTTP
 
@@ -216,7 +219,9 @@ mise run test:integration
 - **Integration tests** (`test/`, Node's built-in test runner + `amqplib`) run against the live
   stack and are the real proof. They fetch real `client_credentials` tokens for each service and assert: the HTTP
   entry point accepts a job; every service may publish what its scopes allow; and the **reporter (publish), the
-  dispatcher (cross-exchange), and the worker (out-of-scope routing key) are each refused** by the broker.
+  dispatcher (cross-exchange), and the worker (out-of-scope routing key) are each refused** by the broker. A final pair
+  shortens the realm's token lifespan to 15s and proves the refresh story: the broker refuses an **expired** token, and
+  the AMQP **`update-secret`** method renews the credential on a live connection.
 
 ## Running individual services
 
