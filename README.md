@@ -76,8 +76,8 @@ You need [Docker](https://docs.docker.com/get-docker/) and [mise](https://mise.j
 Node versions automatically, so there's no manual setup.
 
 ```bash
-git clone https://github.com/lukas-grigis/spring-oauth2-amqp.git
-cd spring-oauth2-amqp
+git clone https://github.com/lukas-grigis/spring-oauth2-amqp-0.9.1.git
+cd spring-oauth2-amqp-0.9.1
 mise run demo
 ```
 
