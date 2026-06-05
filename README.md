@@ -13,6 +13,10 @@
   No <code>guest/guest</code>. No application-level ACLs. Just tokens, scopes, and a broker that refuses to lie.
 </p>
 
+<p align="center">
+  <a href="https://lukasgrigis.dev/blog/rabbitmq-oauth2-amqp-0-9-1/"><strong>Read the companion blog post &rarr;</strong></a>
+</p>
+
 ---
 
 Most RabbitMQ tutorials authenticate services with `guest/guest` (or some other shared password) and enforce
