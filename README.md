@@ -19,6 +19,8 @@
 
 ---
 
+> Looking for **AMQP 1.0**? [`spring-oauth2-amqp-1.0`](https://github.com/lukas-grigis/spring-oauth2-amqp-1.0) is the AMQP 1.0 port of this repo — same security model, same topology, same payoff, adapted to AMQP 1.0's native client, addressing, and token lifecycle.
+
 Most RabbitMQ tutorials authenticate services with `guest/guest` (or some other shared password) and enforce
 who-can-do-what inside the application. Both habits are bad: shared credentials are a blast radius, and
 application-level ACLs are trust-on-first-read.
